@@ -37,7 +37,7 @@ sudo apt install python3-pip python3-dev libpq-dev postgresql postgresql-contrib
 Switch to the PostgreSQL user:
 
 ```bash
-sudo -i -u postgres
+sudo -u postgres psql
 ```
 
 Create a new database and user:
