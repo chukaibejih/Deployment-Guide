@@ -61,7 +61,47 @@ exit
 
 ---
 
-## **4. Clone Your Project from GitHub**
+## **4. Add SSH Key to GitHub**
+To enable secure cloning, add your SSH key to GitHub:
+
+1. Generate a new SSH key (if you haven't already):
+
+   ```bash
+   ssh-keygen -t ed25519 -C "your-email@example.com"
+   ```
+   Press **Enter** to save it in the default location and set a passphrase if desired.
+
+2. Start the SSH agent and add your key:
+
+   ```bash
+   eval "$(ssh-agent -s)"
+   ssh-add ~/.ssh/id_ed25519
+   ```
+
+3. Copy the SSH key to GitHub:
+
+   ```bash
+   cat ~/.ssh/id_ed25519.pub
+   ```
+   - Go to **GitHub** → **Settings** → **SSH and GPG keys** → **New SSH key**.
+   - Paste the key and save.
+
+4. Test the connection:
+
+   ```bash
+   ssh -T git@github.com
+   ```
+
+   If successful, you’ll see:
+   ```
+   Hi <your-username>! You've successfully authenticated, but GitHub does not provide shell access.
+   ```
+
+> **Why?** Using SSH ensures secure authentication without needing to enter passwords frequently.
+
+---
+
+## **5. Clone Your Project from GitHub**
 Navigate to your home directory and clone the repository:
 
 ```bash
@@ -74,7 +114,7 @@ cd xtridelink
 
 ---
 
-## **5. Set Up a Virtual Environment**
+## **6. Set Up a Virtual Environment**
 
 ```bash
 python3 -m venv venv
@@ -87,7 +127,11 @@ pip install -r requirements.txt
 
 ---
 
-## **6. Configure Django Settings**
+## **7. Configure Django Settings**
+Create and `.env` file:
+```bash
+sudo nano .env
+```
 Edit your `.env` file with the correct values:
 
 ```plaintext
@@ -101,6 +145,33 @@ Apply migrations:
 ```bash
 python manage.py migrate
 ```
+
+### **Troubleshooting: Permission Denied Error**
+If you encounter a `permission denied for schema public` error when running migrations, grant the necessary privileges to your database user by following these steps:
+
+1. **Login to PostgreSQL as a Superuser**
+   ```bash
+   sudo -u postgres psql
+   ```
+
+2. **Switch to the correct database and grant privileges**
+   ```sql
+   \c xtridelink
+   
+   ALTER ROLE xtridelink_user WITH CREATEDB;
+   GRANT ALL PRIVILEGES ON DATABASE xtridelink TO xtridelink_user;
+   GRANT ALL PRIVILEGES ON SCHEMA public TO xtridelink_user;
+   ```
+
+3. **Exit PostgreSQL and retry migration**
+   ```sql
+   \q
+   ```
+   ```bash
+   python manage.py migrate
+   ```
+
+This should resolve the permission issue and allow Django to apply migrations successfully.
 
 Collect static files:
 
@@ -118,7 +189,7 @@ python manage.py createsuperuser
 
 ---
 
-## **7. Set Up Gunicorn**
+## **8. Set Up Gunicorn**
 Install Gunicorn:
 
 ```bash
@@ -168,7 +239,7 @@ sudo systemctl enable xtridelink
 
 ---
 
-## **8. Set Up Nginx**
+## **9. Set Up Nginx**
 Create an Nginx configuration file:
 
 ```bash
@@ -186,14 +257,6 @@ server {
         include proxy_params;
         proxy_pass http://unix:/home/xtridelink/xtridelink.sock;
     }
-
-    location /static/ {
-        root /home/xtridelink;
-    }
-
-    location /media/ {
-        root /home/xtridelink;
-    }
 }
 ```
 
@@ -209,85 +272,6 @@ sudo systemctl restart nginx
 
 ---
 
-## **9. Set Up Redis**
-Enable and start Redis:
-
-```bash
-sudo systemctl enable redis-server
-sudo systemctl start redis-server
-```
-
-Test Redis:
-
-```bash
-redis-cli ping
-```
-
-> **Why?** Redis is used for caching and message brokering with Celery.
-
----
-
-## **10. Set Up Celery**
-Install Celery:
-
-```bash
-pip install celery
-```
-
-Create a **Celery systemd service**:
-
-```bash
-sudo nano /etc/systemd/system/celery.service
-```
-
-Paste the following:
-
-```ini
-[Unit]
-Description=Celery Service
-After=network.target
-
-[Service]
-User=root
-Group=www-data
-WorkingDirectory=/home/xtridelink
-ExecStart=/home/xtridelink/venv/bin/celery -A config worker --loglevel=info
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Start and enable Celery:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl start celery
-sudo systemctl enable celery
-```
-
-> **Why?** Celery handles background task execution.
-
----
-
-## **11. Attach Domain to VPS**
-1. Update **DNS A record** at your domain registrar:
-   - **Host:** `@`
-   - **Type:** `A`
-   - **Value:** `your_server_ip`
-2. Add a **CNAME record** for `www`:
-   - **Host:** `www`
-   - **Type:** `CNAME`
-   - **Value:** `yourdomain.com`
-3. Restart Nginx:
-
-```bash
-sudo systemctl restart nginx
-```
-
-> **Why?** Configuring DNS ensures your domain points to your VPS.
-
----
-
 ## **Conclusion**
 Your Django application is now fully deployed with:
 ✅ PostgreSQL as the database  
@@ -297,7 +281,4 @@ Your Django application is now fully deployed with:
 ✅ A custom domain attached
 
 Enjoy your production-ready deployment! 🚀
-
-
-
 
