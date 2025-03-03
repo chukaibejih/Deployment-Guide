@@ -239,6 +239,8 @@ sudo systemctl enable xtridelink
 
 ---
 
+...
+
 ## **9. Set Up Nginx**
 Create an Nginx configuration file:
 
@@ -270,7 +272,102 @@ sudo systemctl restart nginx
 
 > **Why?** Nginx acts as a reverse proxy, handling HTTP requests efficiently.
 
+### **Troubleshooting Nginx Issues**
+If you experience issues with Nginx, try the following:
+
+1. **Check Nginx Logs**:
+   ```bash
+   sudo journalctl -u nginx --no-pager | tail -n 50
+   sudo cat /var/log/nginx/error.log
+   ```
+   Look for any errors related to file paths or permissions.
+
+2. **Verify the `proxy_pass` Path**:
+   Ensure that your `proxy_pass` directive correctly points to the Gunicorn socket:
+   ```nginx
+   proxy_pass http://unix:/home/xtridelink_backend/xtridelink.sock;
+   ```
+   If your project is in a different directory, update the path accordingly.
+
+3. **Test Nginx Configuration**:
+   ```bash
+   sudo nginx -t
+   ```
+   If there are syntax errors, correct them before restarting.
+
+4. **Restart Services**:
+   ```bash
+   sudo systemctl restart nginx
+   sudo systemctl restart gunicorn
+   ```
+
+5. **Check Firewall Rules**:
+   ```bash
+   sudo ufw status
+   ```
+   Ensure that Nginx is allowed (`Nginx Full` should be enabled).
+
 ---
+
+## **10. Configure Subdomain for API (dev.xtridelink.org)**
+
+### **1. Add Subdomain in Namecheap DNS**
+- Log in to your [Namecheap account](https://www.namecheap.com/).
+- Navigate to **Domain List** > Click **Manage** next to `xtridelink.org`.
+- Go to the **Advanced DNS** tab.
+- Add a new **A Record**:
+  - **Host**: `dev`
+  - **Value**: Your DigitalOcean droplet's IP
+  - **TTL**: Automatic
+- Save changes and wait for DNS propagation (can take up to 24 hours, but usually faster).
+
+### **2. Create Nginx Configuration for Subdomain**
+
+```bash
+sudo nano /etc/nginx/sites-available/dev_xtridelink
+```
+
+Paste the following:
+
+```nginx
+server {
+    listen 80;
+    server_name dev.xtridelink.org;
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/home/xtridelink/xtridelink.sock;
+    }
+}
+```
+
+Enable the new configuration:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/dev_xtridelink /etc/nginx/sites-enabled
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### **3. Allow HTTP Traffic on Firewall**
+Ensure your firewall allows HTTP traffic:
+
+```bash
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+### **4. Secure with SSL (Optional, Recommended)**
+Use **Certbot** for a free SSL certificate:
+
+```bash
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d dev.xtridelink.org
+```
+
+Now, your API should be accessible at `http://dev.xtridelink.org`. 🚀
+
 
 ## **Conclusion**
 Your Django application is now fully deployed with:
@@ -278,7 +375,9 @@ Your Django application is now fully deployed with:
 ✅ Gunicorn as the application server  
 ✅ Nginx as the reverse proxy  
 ✅ Redis and Celery for background tasks  
-✅ A custom domain attached
+✅ A custom domain attached  
 
 Enjoy your production-ready deployment! 🚀
+
+
 
